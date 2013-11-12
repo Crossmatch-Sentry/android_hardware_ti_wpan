@@ -19,13 +19,21 @@
 #ifndef UIM_H
 #define UIM_H
 
+#if defined(BOTHER)
+#define USING_UAPI
+#endif
+
 /* Paramaters to set the baud rate*/
 #define  FLOW_CTL       0x0001
+#ifndef USING_UAPI
 #define  BOTHER         0x00001000
+#endif
 #define  ARM_NCCS       19
 
+#ifndef USING_UAPI
 #define TCGETS2      _IOR('T',0x2A, struct termios2)
 #define TCSETS2      _IOW('T',0x2B, struct termios2)
+#endif
 
 /*HCI Command and Event information*/
 #define HCI_HDR_OPCODE          0xff36
@@ -70,6 +78,7 @@
 #endif  /* ANDROID */
 
 /*Termios2 structure for setting the Custom baud rate*/
+#ifndef USING_UAPI
 struct termios2 {
 	tcflag_t c_iflag;       /* input mode flags */
 	tcflag_t c_oflag;       /* output mode flags */
@@ -80,6 +89,7 @@ struct termios2 {
 	speed_t c_ispeed;       /* input speed */
 	speed_t c_ospeed;       /* output speed */
 };
+#endif
 
 /* HCI command header*/
 typedef struct {

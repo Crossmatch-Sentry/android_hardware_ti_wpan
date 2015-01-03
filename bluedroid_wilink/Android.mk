@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ifeq ($(TARGET_DEVICE),panda)
+ifeq ($(BOARD_WLAN_DEVICE),wl12xx_mac80211)
 
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)

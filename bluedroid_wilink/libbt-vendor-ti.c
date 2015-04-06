@@ -28,6 +28,9 @@
 #include <bt_hci_lib.h>
 #include <bt_hci_bdroid.h>
 #include <utils.h>
+#include <dirent.h>
+
+#define MAX_SIZE	128
 
 bt_vendor_callbacks_t *bt_vendor_cbacks = NULL;
 unsigned int hci_tty_fd = -1;
@@ -45,6 +48,54 @@ void hw_config_cback(HC_BT_HDR *p_evt_buf);
 void hw_config_cback(HC_BT_HDR *p_evt_buf)
 {
     ALOGI("hw_config_cback");
+}
+
+static int dir_filter(const struct dirent *name)
+{
+    if (0 == strncmp("kim.", name->d_name, 4))
+            return 1;
+
+    return 0;
+}
+
+int get_tty_name(char *name)
+{
+    int i, n, fd, ret;
+    struct dirent **namelist;
+    char dev_name_entry[MAX_SIZE];
+    unsigned char buf[32];
+
+    n = scandir("/sys/devices/soc0/", &namelist, dir_filter, alphasort);
+    if (n == -1) {
+        ALOGE("found zero kim devices: %s", strerror(errno));
+        return -1;
+    } else if (n > 1) {
+        ALOGE("unexpected - found %d kim devices", n);
+        for (i = 0; i < n; i++)
+            free(namelist[i]);
+        free(namelist);
+        return -1;
+    }
+
+    sprintf(dev_name_entry, "/sys/devices/soc0/%s/dev_name",
+            namelist[0]->d_name);
+    fd = open(dev_name_entry, O_RDONLY);
+    if (fd < 0) {
+        ALOGE("couldn't open %s", dev_name_entry);
+        return -1;
+    }
+
+    ret = read(fd, buf, 32);
+    if (ret < 0)
+        ALOGE("couldn't read: %s", strerror(errno));
+    else
+        sscanf((const char*)buf, "%s", name);
+
+    free(namelist[0]);
+    free(namelist);
+    close(fd);
+
+    return ret;
 }
 
 int ti_init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr) {
@@ -68,12 +119,17 @@ void ti_cleanup(void) {
 int ti_op(bt_vendor_opcode_t opcode, void **param) {
     int fd;
     int *fd_array = (int (*)[]) param;
+    unsigned char tty_dev[MAX_SIZE];
 
     ALOGI("vendor op - %d", opcode);
     switch(opcode)
     {
         case BT_VND_OP_USERIAL_OPEN:
-            fd = open("/dev/hci_tty", O_RDWR);
+            if (get_tty_name(&tty_dev) < 0)
+                return -1;
+
+            ALOGI("opening %s", tty_dev);
+            fd = open((const char*)tty_dev, O_RDWR);
             if (fd < 0) {
                 ALOGE(" Can't open hci_tty");
                 return -1;

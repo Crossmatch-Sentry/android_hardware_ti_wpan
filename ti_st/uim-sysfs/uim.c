@@ -668,7 +668,7 @@ bdaddr_t *strtoba(const char *str)
 // ignore the "." and ".." entries
 static int dir_filter(const struct dirent *name)
 {
-    if (0 == strncmp("kim.", name->d_name, 4))
+    if (NULL != strstr(name->d_name, "kim"))
             return 1;
 
     return 0;

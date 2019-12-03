@@ -40,12 +40,12 @@ void hw_config_cback(HC_BT_HDR *p_evt_buf);
  * Returns          None
  *
  * *******************************************************************************/
-void hw_config_cback(HC_BT_HDR *p_evt_buf)
+void hw_config_cback(HC_BT_HDR __attribute__((unused))*p_evt_buf)
 {
     ALOGI("hw_config_cback");
 }
 
-int ti_init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr) {
+int ti_init(const bt_vendor_callbacks_t* p_cb, unsigned char __attribute__((unused)) *local_bdaddr) {
     ALOGI("vendor Init");
 
     if (p_cb == NULL)

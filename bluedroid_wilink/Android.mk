@@ -19,7 +19,7 @@ include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES := system/bt/hci/include
 
-LOCAL_CFLAGS := -g -c -W -Wall -O2 -D_POSIX_SOURCE
+LOCAL_CFLAGS := -g -c -W -Wall -Wno-incompatible-pointer-types -O2 -D_POSIX_SOURCE
 
 LOCAL_SRC_FILES := libbt-vendor-ti.c
 

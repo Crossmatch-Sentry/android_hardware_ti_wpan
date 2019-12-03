@@ -34,6 +34,7 @@
 #include <private/android_filesystem_config.h>
 #include <cutils/log.h>
 #include <dirent.h>
+#include <sys/syscall.h>
 #endif
 
 #define UIM_SYSFS_SIZE 64
@@ -51,6 +52,10 @@ bdaddr_t *bd_addr;
 
 /* File descriptor for the UART device*/
 int dev_fd;
+
+#ifdef ANDROID
+#define VENDOR_MOD_PATH	"/vendor/lib/modules"
+#endif
 
 static inline void cleanup(int failed)
 {
@@ -96,18 +101,23 @@ void read_firmware_version()
 /* Function to insert the kernel module into the system*/
 static int insmod(const char *filename, const char *args)
 {
-	void *module;
-	unsigned int size;
-	int ret = -1;
+	int ret;
+	int fd;
 
 	UIM_START_FUNC();
+	fd = TEMP_FAILURE_RETRY(open(filename, O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+	if (fd < 0) {
+		UIM_ERR("Unable to open driver module \"%s\": %s",
+				filename, strerror(errno));
+		return -1;
+	}
 
-	module = (void *)load_file(filename, &size);
-	if (!module)
-		return ret;
+	ret = syscall(__NR_finit_module, fd, args, 0);
 
-	ret = init_module(module, size, args);
-	free(module);
+	close(fd);
+	if (ret < 0) {
+		UIM_ERR("finit_module return: %s", strerror(errno));
+	}
 
 	return ret;
 }
@@ -558,6 +568,15 @@ int remove_modules()
 	}
 	UIM_DBG(" Removed btwilink module");
 
+	UIM_VER(" Removing tty_hci ");
+	if (rmmod("tty_hci") != 0) {
+		UIM_ERR(" Error removing tty_hci module");
+		err = -1;
+	} else {
+		UIM_DBG(" Removed tty_hci module");
+	}
+	UIM_DBG(" Removed tty_hci module");
+
 	/*Remove the Shared Transport */
 	UIM_VER(" Removing st_drv ");
 	if (rmmod("st_drv") != 0) {
@@ -735,8 +754,8 @@ int main(int argc, char *argv[])
 	}
 #else  /* if ANDROID */
 
-	if (0 == lstat("/st_drv.ko", &file_stat)) {
-		if (insmod("/st_drv.ko", "") < 0) {
+	if (0 == lstat( VENDOR_MOD_PATH "/st_drv.ko", &file_stat)) {
+		if (insmod( VENDOR_MOD_PATH "/st_drv.ko", "") < 0) {
 			UIM_ERR(" Error inserting st_drv module");
 			return -1;
 		} else {
@@ -751,8 +770,19 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (0 == lstat("/btwilink.ko", &file_stat)) {
-		if (insmod("/btwilink.ko", "") < 0) {
+	if (0 == lstat( VENDOR_MOD_PATH "/tty_hci.ko", &file_stat)) {
+		if (insmod( VENDOR_MOD_PATH "/tty_hci.ko", "") < 0) {
+			UIM_ERR(" Error inserting tty_hci module, NO BT? ");
+		} else {
+			UIM_DBG(" Inserted tty_hci module");
+		}
+	} else {
+		UIM_DBG("BT tty_hci driver module un-available... ");
+		UIM_DBG("BT tty_hci driver built into the kernel ?");
+	}
+
+	if (0 == lstat( VENDOR_MOD_PATH "/btwilink.ko", &file_stat)) {
+		if (insmod( VENDOR_MOD_PATH "/btwilink.ko", "") < 0) {
 			UIM_ERR(" Error inserting btwilink module, NO BT? ");
 		} else {
 			UIM_DBG(" Inserted btwilink module");
@@ -762,8 +792,8 @@ int main(int argc, char *argv[])
 		UIM_DBG("BT driver built into the kernel ?");
 	}
 
-	if (0 == lstat("/fm_drv.ko", &file_stat)) {
-		if (insmod("/fm_drv.ko", "") < 0) {
+	if (0 == lstat( VENDOR_MOD_PATH "/fm_drv.ko", &file_stat)) {
+		if (insmod( VENDOR_MOD_PATH "/fm_drv.ko", "") < 0) {
 			UIM_ERR(" Error inserting fm_drv module, NO FM? ");
 		} else {
 			UIM_DBG(" Inserted fm_drv module");
@@ -773,8 +803,8 @@ int main(int argc, char *argv[])
 		UIM_DBG("FM driver built into the kernel ?");
 	}
 
-	if (0 == lstat("/gps_drv.ko", &file_stat)) {
-		if (insmod("/gps_drv.ko", "") < 0) {
+	if (0 == lstat( VENDOR_MOD_PATH "/gps_drv.ko", &file_stat)) {
+		if (insmod( VENDOR_MOD_PATH "/gps_drv.ko", "") < 0) {
 			UIM_ERR(" Error inserting gps_drv module, NO GPS? ");
 		} else {
 			UIM_DBG(" Inserted gps_drv module");
@@ -784,8 +814,8 @@ int main(int argc, char *argv[])
 		UIM_DBG("GPS driver built into the kernel ?");
 	}
 
-	if (0 == lstat("/fm_v4l2_drv.ko", &file_stat)) {
-		if (insmod("/fm_v4l2_drv.ko", "") < 0) {
+	if (0 == lstat( VENDOR_MOD_PATH "/fm_v4l2_drv.ko", &file_stat)) {
+		if (insmod( VENDOR_MOD_PATH "/fm_v4l2_drv.ko", "") < 0) {
 			UIM_ERR(" Error inserting fm_v4l2_drv module, NO FM? ");
 		} else {
 			UIM_DBG(" Inserted fm_v4l2_drv module");
